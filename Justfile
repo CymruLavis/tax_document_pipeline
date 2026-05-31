@@ -8,3 +8,6 @@ lint:
 
 test-all:
     python -m pytest -s 
+
+api:
+    uv run uvicorn src.services.oauth:oauth --reload
