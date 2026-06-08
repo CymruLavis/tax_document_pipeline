@@ -1,0 +1,7 @@
+.ruff_cache
+.venv
+.vscode
+ML
+Justfile
+PLAN.md
+README.md

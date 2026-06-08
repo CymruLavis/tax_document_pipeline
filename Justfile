@@ -10,4 +10,7 @@ test-all:
     python -m pytest -s 
 
 api:
-    uv run uvicorn src.services.oauth:oauth --reload
+    uv run uvicorn src.api.oauth:oauth --reload
+
+build:
+    docker compose up --build
