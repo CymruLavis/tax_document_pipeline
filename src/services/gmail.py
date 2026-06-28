@@ -4,7 +4,12 @@ import httpx
 from httpx import HTTPError
 
 from src.config import GmailConfig
-from src.services.schemas import GmailListMessage, GmailListResponse, GmailMessage
+from src.services.schemas import (
+    GmailListMessage,
+    GmailListResponse,
+    GmailMessage,
+    GmailMessagePartBody,
+)
 
 
 @dataclass
@@ -63,7 +68,16 @@ class GmailConnector:
     async def get_message(self, message_id: str) -> GmailMessage:
         # last_successful_scan is in the format YYYY/MM/DD
         endpoint = f"/gmail/v1/users/me/messages/{message_id}"
-        gmail_message = GmailMessage.model_validate(
-            await self._make_request(endpoint=endpoint)
+        response = await self._make_request(endpoint=endpoint)
+        gmail_message = GmailMessage.model_validate(response)
+        return gmail_message
+
+    async def get_attachment(
+        self, message_id: str, attachment_id: str
+    ) -> GmailMessagePartBody:
+        endpoint = (
+            f"/gmail/v1/users/me/messages/{message_id}/attachments/{attachment_id}"
         )
+        response = await self._make_request(endpoint=endpoint)
+        gmail_message = GmailMessagePartBody.model_validate(response)
         return gmail_message

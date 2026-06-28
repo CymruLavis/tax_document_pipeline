@@ -19,7 +19,7 @@ class GmailHeader(BaseModel):
 class GmailMessagePartBody(BaseModel):
     attachmentId: str | None = None
     size: int
-    data: str
+    data: str | None = None
 
 
 class GmailMessagePart(BaseModel):
