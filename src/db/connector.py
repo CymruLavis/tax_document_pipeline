@@ -1,61 +1,75 @@
-from abc import ABC, abstractmethod
+from uuid import UUID
 
-from sqlalchemy import insert, select
+from sqlalchemy import delete, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.config import BaseConfig
-from src.db.orm import Config
+from src.db.context import AuthContext, EmailContext, ReceiptContext
+from src.db.orm import Authentication, Email, ReceiptDetail
 
 
-class AbstractConnector(ABC):
-    @abstractmethod
-    async def add(self) -> None:
-        raise NotImplementedError
+class AuthenticationConnector:
+    async def add(self, session: AsyncSession, auth: AuthContext) -> None:
+        stmt = insert(Authentication).values(**auth.model_dump())
+        await session.execute(stmt)
 
-    @abstractmethod
-    async def update(self) -> None:
-        raise NotImplementedError
+    async def get(self, session: AsyncSession, id: UUID) -> AuthContext:
+        stmt = select(Authentication).where(Authentication.id == id)
+        rows = await session.execute(stmt)
+        result = rows.scalar_one()
+        return AuthContext.model_validate(result)
 
-    @abstractmethod
-    async def get(self) -> None:
-        raise NotImplementedError
+    async def delete(self, session: AsyncSession, id: UUID) -> None:
+        stmt = delete(Authentication).where(Authentication.id == id)
+        await session.execute(stmt)
 
-    @abstractmethod
-    async def delete(self) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    async def clear(self) -> None:
-        raise NotImplementedError
-
-
-class ConfigConnector:
-    def __init__(self, session: AsyncSession) -> None:
-        self.session = session
-
-    async def add(self, config: BaseConfig):
-        stmt = insert(Config).values(config.model_dump())
-        await self.session.execute(stmt)
-        await self.session.flush()
-
-    async def get(self, email: str) -> Config | None:
-        stmt = select(Config).where(Config.email == email)
-        result = await self.session.execute(stmt)
-        config = result.first()
-        if config is None:
-            return None
-        return config[0]
-
-    async def delete(self, email: str): ...
+    async def update(self, session: AsyncSession, auth: AuthContext) -> None:
+        stmt = (
+            update(Authentication)
+            .where(Authentication.id == auth.id)
+            .values(**auth.model_dump())
+        )
+        await session.execute(stmt)
 
 
-class AuthenticationConnector(AbstractConnector):
-    def __init__(self, session: AsyncSession) -> None:
-        self.session = session
+class EmailConnector:
+    async def add(self, session: AsyncSession, email: EmailContext) -> None:
+        stmt = insert(Email).values(**email.model_dump())
+        await session.execute(stmt)
 
-    async def add(self) -> None:
-        pass
+    async def get(self, session: AsyncSession, id: str) -> EmailContext:
+        stmt = select(Email).where(Email.id == id)
+        rows = await session.execute(stmt)
+        result = rows.scalar_one()
+        return EmailContext.model_validate(result)
+
+    async def delete(self, session: AsyncSession, id: str) -> None:
+        stmt = delete(Email).where(Email.id == id)
+        await session.execute(stmt)
+
+    async def update(self, session: AsyncSession, auth: EmailContext) -> None:
+        stmt = update(Email).where(Email.id == auth.id).values(**auth.model_dump())
+        await session.execute(stmt)
 
 
-class UserConnector(AbstractConnector):
-    pass
+class ReceiptConnector:
+    async def add(self, session: AsyncSession, receipt: ReceiptContext) -> None:
+        stmt = insert(ReceiptDetail).values(**receipt.model_dump())
+        await session.execute(stmt)
+
+    async def get(self, session: AsyncSession, id: str) -> ReceiptContext:
+        stmt = select(ReceiptDetail).where(ReceiptDetail.id == id)
+        rows = await session.execute(stmt)
+        result = rows.scalar_one()
+        return ReceiptContext.model_validate(result)
+
+    async def delete(self, session: AsyncSession, id: str) -> None:
+        stmt = delete(ReceiptDetail).where(ReceiptDetail.id == id)
+        await session.execute(stmt)
+
+    async def update(self, session: AsyncSession, receipt: ReceiptContext) -> None:
+        stmt = (
+            update(ReceiptDetail)
+            .where(ReceiptDetail.id == receipt.id)
+            .values(**receipt.model_dump())
+        )
+        await session.execute(stmt)
