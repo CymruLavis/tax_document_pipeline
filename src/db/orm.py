@@ -20,6 +20,7 @@ class Authentication(Base):
     refresh_token: Mapped[str]
     scopes: Mapped[list[str]]
     expires_in: Mapped[int]
+    email: Mapped[str]
     id: Mapped[UUID] = mapped_column(primary_key=True)
 
 

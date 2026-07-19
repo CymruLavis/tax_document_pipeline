@@ -172,12 +172,7 @@ class CanonicalEmail:
    2. Token Managment
    3. Gmail Specific Data Objects
    4. Client activities for ingesting data
-2. Create Outlook Client
-   1. Oauth App
-   2. Token Managment
-   3. Outlook Specific Data Objects
-   4. Client activities for ingesting data
-3. Create Classification Model
+2. Create Classification Model
    1. Binary Classification for email ingestion
       1. Generate dataset from emails
       2. Create testing pipeline
@@ -198,11 +193,11 @@ class CanonicalEmail:
                 }
       4. Final Train
       5. Export trained model
-4. Create Storage system
+3. Create Storage system
    1. Generate SQL Alchemy tables
    2. create models for transporting raw data to and from the table
    3. create sync for updating tables if a filepath is manually deleted
-5. Temporal workflow
+4. Temporal workflow
    1. scheduled workflow
    2. activities for ingesting from each source
    3. activities for completing transformations, normalizations, ML inference, sorting, etc

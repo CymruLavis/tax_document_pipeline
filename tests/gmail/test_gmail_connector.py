@@ -3,20 +3,14 @@ import base64
 import pytest
 from dotenv import load_dotenv
 
-from src.config import GmailConfig
 from src.services.gmail import GmailConnector
 
 load_dotenv()
 
 
 @pytest.fixture
-def gmail_config():
-    return GmailConfig()  # type: ignore
-
-
-@pytest.fixture
-def gmail_client(gmail_config):
-    return GmailConnector(config=gmail_config)
+def gmail_client():
+    return GmailConnector()
 
 
 @pytest.mark.asyncio

@@ -10,6 +10,7 @@ class AuthContext(BaseModel):
     refresh_token: str
     scopes: list[str] = Field(description="list of scopes token has access to")
     expires_in: int = Field(description="time to expiry in seconds")
+    email: str = Field(description="email of token requester")
     id: UUID = Field(description="unique uuid identifier for the id", default=uuid4())
 
 

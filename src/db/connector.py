@@ -30,6 +30,12 @@ class AuthenticationConnector:
         )
         await session.execute(stmt)
 
+    async def get_auth_by_email(self, session: AsyncSession, email: str) -> AuthContext:
+        stmt = select(Authentication).where(Authentication.email == email)
+        rows = await session.execute(stmt)
+        result = rows.scalar_one()
+        return AuthContext.model_validate(result)
+
 
 class EmailConnector:
     async def add(self, session: AsyncSession, email: EmailContext) -> None:

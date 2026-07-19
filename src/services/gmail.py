@@ -1,9 +1,11 @@
 from dataclasses import dataclass
 
 import httpx
+from fastapi import Depends
 from httpx import HTTPError
 
 from src.config import GmailConfig
+from src.dependancies import get_gmail_config
 from src.services.schemas import (
     GmailListMessage,
     GmailListResponse,
@@ -21,7 +23,7 @@ class GmailAuthContext:
 
 
 class GmailConnector:
-    def __init__(self, config: GmailConfig):
+    def __init__(self, config: GmailConfig = Depends(get_gmail_config)):
         self.config = config
         self.auth_ctx: GmailAuthContext | None = None
 
