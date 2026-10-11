@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from fastapi import FastAPI
 from httpx import AsyncClient, Timeout
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from src.config import GmailConfig
 from src.db.connector import AuthenticationConnector
@@ -13,7 +13,6 @@ from src.services.oauth import OAuthService
 
 @dataclass(slots=True)
 class AppContext:
-    session_factory: async_sessionmaker[AsyncSession]
     engine: AsyncEngine
     gmail_config: GmailConfig
     oauth_service: OAuthService
@@ -23,11 +22,10 @@ class AppContext:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     oauth_timeout = Timeout(connect=5.0, write=10.0, read=10.0, pool=5.0)
-    oauth_connector = AuthenticationConnector()
+    oauth_connector = AuthenticationConnector(session_factory=session_factory)
     oauth_client = AsyncClient(timeout=oauth_timeout)
     oauth_service = OAuthService(client=oauth_client, _oauth_connector=oauth_connector)
     app.state.context = AppContext(
-        session_factory=session_factory,
         engine=engine,
         gmail_config=GmailConfig(),  # pyright: ignore
         oauth_service=oauth_service,

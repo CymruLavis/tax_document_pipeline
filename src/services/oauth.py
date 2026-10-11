@@ -1,7 +1,6 @@
 from google.auth.transport import requests
 from google.oauth2 import id_token
 from httpx import AsyncClient, HTTPStatusError, RequestError, Response, TimeoutException
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.schemas import (
     AccessTokenResponse,
@@ -48,7 +47,9 @@ class OAuthService:
         return claims["email"]
 
     async def get_access_token(
-        self, code: str, config: GmailConfig, session: AsyncSession
+        self,
+        code: str,
+        config: GmailConfig,
     ) -> Response:
         data = {
             "code": code,
@@ -72,16 +73,11 @@ class OAuthService:
             ),
             expires_in=_auth.expires_in,
         )
-        await self.oauth_connector.add(session=session, auth=auth)
-        await session.commit()
+        await self.oauth_connector.add(auth=auth)
         return token_response
 
-    async def refresh_token(
-        self, email: str, session: AsyncSession, config: GmailConfig
-    ) -> Response:
-        auth = await self.oauth_connector.get_auth_by_email(
-            session=session, email=email
-        )
+    async def refresh_token(self, email: str, config: GmailConfig) -> Response:
+        auth = await self.oauth_connector.get(email=email)
         data = {
             "grant_type": "refresh_token",
             "refresh_token": auth.refresh_token,
@@ -97,8 +93,6 @@ class OAuthService:
             scopes=_auth.scope.split(" "),
             expires_in=_auth.expires_in,
             email=auth.email,
-            id=auth.id,
         )
-        await self.oauth_connector.update(session=session, auth=new_auth)
-        await session.commit()
+        await self.oauth_connector.update(auth=new_auth)
         return token_response

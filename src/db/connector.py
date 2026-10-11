@@ -1,40 +1,42 @@
-from uuid import UUID
-
 from sqlalchemy import delete, insert, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.db.context import AuthContext, EmailContext, ReceiptContext
 from src.db.orm import Authentication, Email, ReceiptDetail
 
 
 class AuthenticationConnector:
-    async def add(self, session: AsyncSession, auth: AuthContext) -> None:
-        stmt = insert(Authentication).values(**auth.model_dump())
-        await session.execute(stmt)
+    def __init__(self, session_factory: async_sessionmaker[AsyncSession]):
+        self._session_factory = session_factory
 
-    async def get(self, session: AsyncSession, id: UUID) -> AuthContext:
-        stmt = select(Authentication).where(Authentication.id == id)
-        rows = await session.execute(stmt)
-        result = rows.scalar_one()
-        return AuthContext.model_validate(result)
+    async def add(self, auth: AuthContext) -> None:
+        async with self._session_factory.begin() as session:
+            stmt = insert(Authentication).values(**auth.model_dump())
+            await session.execute(stmt)
+            await session.commit()
 
-    async def delete(self, session: AsyncSession, id: UUID) -> None:
-        stmt = delete(Authentication).where(Authentication.id == id)
-        await session.execute(stmt)
+    async def get(self, email: str) -> AuthContext:
+        async with self._session_factory.begin() as session:
+            stmt = select(Authentication).where(Authentication.email == email)
+            rows = await session.execute(stmt)
+            result = rows.scalar_one()
+            return AuthContext.model_validate(result)
 
-    async def update(self, session: AsyncSession, auth: AuthContext) -> None:
-        stmt = (
-            update(Authentication)
-            .where(Authentication.id == auth.id)
-            .values(**auth.model_dump())
-        )
-        await session.execute(stmt)
+    async def delete(self, email: str) -> None:
+        async with self._session_factory.begin() as session:
+            stmt = delete(Authentication).where(Authentication.email == email)
+            await session.execute(stmt)
+            await session.commit()
 
-    async def get_auth_by_email(self, session: AsyncSession, email: str) -> AuthContext:
-        stmt = select(Authentication).where(Authentication.email == email)
-        rows = await session.execute(stmt)
-        result = rows.scalar_one()
-        return AuthContext.model_validate(result)
+    async def update(self, auth: AuthContext) -> None:
+        async with self._session_factory.begin() as session:
+            stmt = (
+                update(Authentication)
+                .where(Authentication.email == auth.email)
+                .values(**auth.model_dump())
+            )
+            await session.execute(stmt)
+            await session.commit()
 
 
 class EmailConnector:

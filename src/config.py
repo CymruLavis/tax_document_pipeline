@@ -11,5 +11,22 @@ class GmailConfig(BaseSettings):
     AUTH_URL: str
     SCOPES: list[str]
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", env_prefix="GMAIL_"
+        env_file=".env", 
+        env_file_encoding="utf-8",
+        env_prefix="GMAIL_",
+        extra="ignore"
     )
+
+
+class EmailSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env", 
+        env_file_encoding="utf-8",
+        env_prefix="EMAIL_",
+        extra="ignore"
+    )
+    ETHAN_OUTLOOK: str
+    ETHAN_GMAIL: str
+    ETHAN_CAMBRIA: str
+    KIM_GMAIL: str
+    KIM_BELL: str

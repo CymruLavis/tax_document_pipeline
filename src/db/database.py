@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-DB_URL = "sqlite+pysqlite:///:memorty:"
+DB_URL = "sqlite+aiosqlite:///:memory:"
 engine = create_async_engine(DB_URL, echo=True, pool_pre_ping=True)
 
 session_factory = async_sessionmaker(

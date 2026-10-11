@@ -1,7 +1,6 @@
 from datetime import datetime
-from uuid import UUID
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, JSON
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -18,10 +17,9 @@ class Authentication(Base):
     provider: Mapped[str]
     access_token: Mapped[str]
     refresh_token: Mapped[str]
-    scopes: Mapped[list[str]]
+    scopes: Mapped[list[str]] = mapped_column(JSON)
     expires_in: Mapped[int]
-    email: Mapped[str]
-    id: Mapped[UUID] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(primary_key=True)
 
 
 class Email(Base):
@@ -33,7 +31,7 @@ class Email(Base):
     sender_email: Mapped[str]
     recieved_at: Mapped[datetime]
     body_text: Mapped[str]
-    receipt_ids: Mapped[list[str]]
+    receipt_ids: Mapped[list[str]] = mapped_column(JSON)
     file_destination: Mapped[str]
 
 

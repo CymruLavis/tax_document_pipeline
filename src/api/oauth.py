@@ -2,10 +2,9 @@ from urllib.parse import urlencode
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import GmailConfig
-from src.dependancies import get_db_session, get_gmail_config, get_oauth_service
+from src.dependancies import get_gmail_config, get_oauth_service
 from src.services.oauth import OAuthService
 
 oauth = FastAPI()
@@ -39,13 +38,10 @@ async def callback(
     code: str,
     config: GmailConfig = Depends(get_gmail_config),
     oauth_service: OAuthService = Depends(get_oauth_service),
-    db_session: AsyncSession = Depends(get_db_session),
 ) -> JSONResponse:
     if not code:
         raise HTTPException(status_code=400, detail="Authorization code not found")
-    token_response = await oauth_service.get_access_token(
-        code=code, config=config, session=db_session
-    )
+    token_response = await oauth_service.get_access_token(code=code, config=config)
 
     return JSONResponse(
         content={"status": token_response.status_code, "body": token_response.text}
@@ -57,12 +53,9 @@ async def refresh(
     email: str,
     config: GmailConfig = Depends(get_gmail_config),
     oauth_service: OAuthService = Depends(get_oauth_service),
-    db_session: AsyncSession = Depends(get_db_session),
 ) -> JSONResponse:
 
-    token_response = await oauth_service.refresh_token(
-        email=email, config=config, session=db_session
-    )
+    token_response = await oauth_service.refresh_token(email=email, config=config)
 
     return JSONResponse(
         content={"status": token_response.status_code, "body": token_response.text}

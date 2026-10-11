@@ -1,81 +1,161 @@
-import base64
+from unittest.mock import AsyncMock, MagicMock
 
+import httpx
 import pytest
-from dotenv import load_dotenv
 
+from src.config import GmailConfig
+from src.db.context import AuthContext
+from src.db.connector import AuthenticationConnector
+import src.services.gmail as gmail_module
 from src.services.gmail import GmailConnector
-
-load_dotenv()
 
 
 @pytest.fixture
-def gmail_client():
-    return GmailConnector()
+def gmail_config():
+    return GmailConfig(
+        CLIENT_ID="test-client-id",
+        CLIENT_SECRET="test-client-secret",
+        TOKEN_URL="https://example.test/token",
+        REDIRECT_URI="https://example.test/callback",
+        BASE_URL="https://gmail.googleapis.test",
+        AUTH_URL="https://example.test/auth",
+        SCOPES=["mail.readonly"],
+    )
+
+
+@pytest.fixture
+def mock_db_session():
+    session = AsyncMock()
+    result = MagicMock()
+    result.scalar_one.return_value = AuthContext(
+        provider="gmail",
+        access_token="test-access-token",
+        refresh_token="test-refresh-token",
+        scopes=["mail.readonly"],
+        expires_in=3600,
+        email="tester@example.test",
+    )
+    session.execute.return_value = result
+
+    session_context = MagicMock()
+    session_context.__aenter__ = AsyncMock(return_value=session)
+    session_context.__aexit__ = AsyncMock(return_value=False)
+    session_factory = MagicMock()
+    session_factory.begin.return_value = session_context
+
+    return {"session": session, "session_factory": session_factory}
+
+
+@pytest.fixture
+def auth_connector(mock_db_session):
+    return AuthenticationConnector(
+        session_factory=mock_db_session["session_factory"]
+    )
+
+
+@pytest.fixture
+def gmail_api_service(monkeypatch):
+    responses = {}
+    requests = []
+
+    def handle_request(request):
+        requests.append(request)
+        page_token = request.url.params.get("pageToken")
+        payload = responses.get((request.url.path, page_token))
+        if payload is None:
+            return httpx.Response(404, json={"error": "No mock response"})
+        return httpx.Response(200, json=payload)
+
+    original_async_client = httpx.AsyncClient
+    transport = httpx.MockTransport(handle_request)
+    monkeypatch.setattr(
+        gmail_module.httpx,
+        "AsyncClient",
+        lambda: original_async_client(transport=transport),
+    )
+    return responses, requests
+
+
+@pytest.fixture
+def gmail_client(gmail_config, auth_connector):
+    return GmailConnector(config=gmail_config, auth_db=auth_connector)
 
 
 @pytest.mark.asyncio
-async def test_list_messages(gmail_client):
-    last_successful_scan = "2026/06/20"
+async def test_gmail_config_load(gmail_config):
+    assert gmail_config.BASE_URL == "https://gmail.googleapis.test"
+
+
+@pytest.mark.asyncio
+async def test_list_messages(gmail_client, gmail_api_service, mock_db_session):
+    responses, requests = gmail_api_service
+    path = "/gmail/v1/users/me/messages"
+    responses[(path, None)] = {
+        "messages": [{"id": "message-1", "threadId": "thread-1"}],
+        "nextPageToken": "next-page",
+        "resultSizeEstimate": 2,
+    }
+    responses[(path, "next-page")] = {
+        "messages": [{"id": "message-2", "threadId": "thread-2"}],
+        "resultSizeEstimate": 1,
+    }
+
     messages = await gmail_client.list_messages(
-        last_successful_scan=last_successful_scan
+        email="tester@example.test", last_successful_scan="2026/06/20"
     )
-    assert len(messages) > 0
-    print(messages[0])
-    print(len(messages))
+    assert [message.id for message in messages] == ["message-1", "message-2"]
+    assert len(requests) == 2
+    assert requests[0].headers["Authorization"] == "Bearer test-access-token"
+    assert requests[1].url.params["pageToken"] == "next-page"
+    mock_db_session["session"].execute.assert_awaited()
 
 
 @pytest.mark.asyncio
-async def test_get_messages(gmail_client):
-    message_id = "19ee7cb27153ca56"
-    message = await gmail_client.get_message(message_id=message_id)
-    assert message
-    # print(message.threadId)
-    # print(message.internalDate)
-    headers = {h.name.lower(): h.value for h in message.payload.headers}
-    subject = headers.get("subject")
-    sender = headers.get("from")
-    recipient = headers.get("to")
-    date = headers.get("date")
-    message_id = headers.get("message-id")
-    print("HEADERS")
-    print(
-        f"subject:{subject}\nsender:{sender}\nrecipient:{recipient}\ndate:{date}\nmessage_id:{message_id}"
+async def test_get_message(gmail_client, gmail_api_service):
+    responses, _ = gmail_api_service
+    message_id = "message-1"
+    responses[(f"/gmail/v1/users/me/messages/{message_id}", None)] = {
+        "id": message_id,
+        "threadId": "thread-1",
+        "labelIds": ["INBOX"],
+        "snippet": "Test message",
+        "historyId": "history-1",
+        "internalDate": "1781913600000",
+        "payload": {
+            "partId": "0",
+            "mimeType": "text/plain",
+            "filename": "",
+            "headers": [],
+            "body": {"size": 0},
+        },
+        "sizeEstimate": 0,
+    }
+
+    message = await gmail_client.get_message(
+        email="tester@example.test", message_id=message_id
     )
 
-
-def detect_type(raw_bytes: bytes):
-    if raw_bytes.startswith(b"%PDF"):
-        return "pdf"
-    if raw_bytes.startswith(b"PK"):
-        return "zip/docx"
-    if raw_bytes.startswith(b"\xff\xd8"):
-        return "jpg"
-    return "unknown"
+    assert message.id == message_id
+    assert message.payload.mimeType == "text/plain"
 
 
 @pytest.mark.asyncio
-async def test_get_attachment(gmail_client):
-    message_id = "19ee7cb27153ca56"
-    attachment_id = "ANGjdJ8CnIU_n3uxuovmyg4rnkuQ8tkh1QtwrkJIeI7B6nAF2xX4sXSbkXtfXyoBzmmKoW8Fkj21Nf_YK6SvnNLa5rkocvW2aewBciOHYrVdAaRdPHBPe-wdpdUgEsfQ7s4au9rROZZOOkEIfW2Zxmo5GHdJuO_N52ZI62EMhMum9lDfZpnPd_QKaArdYuLKXSR7N5FHNy5c5-se93WVKabIEpczDkcZz5nZydEQ9qQ9_36AIQoi6S2URIGKkpDH3dPSaG7oZpBCDcbqLjn3GA_qi21Y5UJQ5DMa2JmdfZK78wdVr-dN5eFJYTv-bucngNMWfdqNnoDxb26i0R0mjqFHoCghWTZf5deZzUy3o0_VInYRdkUeS7a02eu2RvN-akRSHoYBTW_vvIHVrGhH"
+async def test_get_attachment(gmail_client, gmail_api_service):
+    responses, _ = gmail_api_service
+    message_id = "message-1"
+    attachment_id = "attachment-1"
+    responses[
+        (
+            f"/gmail/v1/users/me/messages/{message_id}/attachments/{attachment_id}",
+            None,
+        )
+    ] = {"attachmentId": attachment_id, "size": 7, "data": "cGF5bG9hZA=="}
+
     attachment = await gmail_client.get_attachment(
-        message_id=message_id, attachment_id=attachment_id
+        email="tester@example.test",
+        message_id=message_id,
+        attachment_id=attachment_id,
     )
-    assert attachment
-    print(f"ID: {attachment.attachmentId}")
-    print(f" SIZE: {attachment.size}")
-    data = attachment.data
-    if data:
-        raw_bytes = base64.urlsafe_b64decode(data)
-        file_type = detect_type(raw_bytes=raw_bytes)
-        print(file_type)
 
-        import fitz
-
-        doc = fitz.open(stream=raw_bytes, filetype="pdf")
-        pages = []
-        for page in doc:
-            text = page.get_text("text")
-            if text:
-                pages.append(text)
-
-        print("\n".join(pages))
+    assert attachment.attachmentId == attachment_id
+    assert attachment.data == "cGF5bG9hZA=="
