@@ -1,7 +1,7 @@
 from fastapi import Depends, Request
 
 from src.config import GmailConfig
-from src.main import AppContext
+from src.context import AppContext
 from src.services.oauth import OAuthService
 
 

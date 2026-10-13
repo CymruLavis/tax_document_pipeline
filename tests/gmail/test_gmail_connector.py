@@ -3,11 +3,12 @@ from unittest.mock import AsyncMock, MagicMock
 import httpx
 import pytest
 
-from src.config import GmailConfig
-from src.db.context import AuthContext
-from src.db.connector import AuthenticationConnector
 import src.services.gmail as gmail_module
+from src.config import GmailConfig
+from src.db.connector import AuthenticationConnector
+from src.db.context import AuthContext
 from src.services.gmail import GmailConnector
+from src.services.oauth import OAuthService
 
 
 @pytest.fixture
@@ -48,9 +49,12 @@ def mock_db_session():
 
 @pytest.fixture
 def auth_connector(mock_db_session):
-    return AuthenticationConnector(
-        session_factory=mock_db_session["session_factory"]
-    )
+    return AuthenticationConnector(session_factory=mock_db_session["session_factory"])
+
+
+@pytest.fixture
+def oauth_service():
+    return AsyncMock(spec=OAuthService)
 
 
 @pytest.fixture
@@ -77,8 +81,12 @@ def gmail_api_service(monkeypatch):
 
 
 @pytest.fixture
-def gmail_client(gmail_config, auth_connector):
-    return GmailConnector(config=gmail_config, auth_db=auth_connector)
+def gmail_client(gmail_config, auth_connector, oauth_service):
+    return GmailConnector(
+        config=gmail_config,
+        auth_db=auth_connector,
+        gmail_oauth=oauth_service,
+    )
 
 
 @pytest.mark.asyncio

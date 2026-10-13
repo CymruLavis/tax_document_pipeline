@@ -5,13 +5,14 @@ from httpx import HTTPError
 
 from src.config import GmailConfig
 from src.db.connector import AuthenticationConnector
+from src.services.oauth import OAuthService
 from src.services.schemas import (
     GmailListMessage,
     GmailListResponse,
     GmailMessage,
     GmailMessagePartBody,
 )
-from src.services.oauth import OAuthService
+
 
 @dataclass
 class GmailAuthContext:
@@ -20,15 +21,16 @@ class GmailAuthContext:
     expiry: int
     scopes: list[str]
 
-class RetryableError(Exception):
-    ...
+
+class RetryableError(Exception): ...
+
 
 class GmailConnector:
     def __init__(
         self,
         config: GmailConfig,
         auth_db: AuthenticationConnector,
-        gmail_oauth: OAuthService
+        gmail_oauth: OAuthService,
     ):
         self.config = config
         self.auth_db = auth_db

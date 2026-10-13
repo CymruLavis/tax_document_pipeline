@@ -1,13 +1,13 @@
 from urllib.parse import urlencode
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from src.config import GmailConfig
 from src.dependancies import get_gmail_config, get_oauth_service
 from src.services.oauth import OAuthService
 
-oauth = FastAPI()
+oauth = APIRouter()
 
 
 @oauth.get("/", response_class=HTMLResponse)

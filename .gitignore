@@ -9,3 +9,6 @@ wheels/
 # Virtual environments
 .venv
 .env
+
+# local db storage location
+data/

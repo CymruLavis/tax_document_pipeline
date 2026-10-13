@@ -22,21 +22,20 @@ class OAuthService:
         self.oauth_connector = _oauth_connector
 
     async def _make_request(self, url: str, data: dict) -> Response:
-        async with self._client as client:
-            try:
-                response = await client.post(url=url, data=data)
-                response.raise_for_status()
-                return response
-            except TimeoutException as e:
-                raise OAuthTimeoutError("Request timed out after") from e
-            except RequestError as e:
-                raise OAuthRequestError("Failed to connect to OAuth provider") from e
-            except HTTPStatusError as e:
-                raise OAuthStatusError(
-                    f"OAuth provider returned {e.response.status_code}"
-                ) from e
-            except Exception as e:
-                raise OAuthError("Unhandled Error") from e
+        try:
+            response = await self._client.post(url=url, data=data)
+            response.raise_for_status()
+            return response
+        except TimeoutException as e:
+            raise OAuthTimeoutError("Request timed out after") from e
+        except RequestError as e:
+            raise OAuthRequestError("Failed to connect to OAuth provider") from e
+        except HTTPStatusError as e:
+            raise OAuthStatusError(
+                f"OAuth provider returned {e.response.status_code}"
+            ) from e
+        except Exception as e:
+            raise OAuthError("Unhandled Error") from e
 
     async def _extract_email_from_token_id(
         self, id_token_str: str, client_id: str
